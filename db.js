@@ -2,13 +2,16 @@ const mysql = require('mysql2');
 
 const conexion = mysql.createConnection({
     host: 'trolley.proxy.rlwy.net',
+    host: 'trolley.proxy.rlwy.net',
     user: 'root',              
+    password: 'KmQBpEafqEPupFJrhmMCDatsQIOUpDGj',              
     password: 'KmQBpEafqEPupFJrhmMCDatsQIOUpDGj',              
     database: 'railway',
     port: 59474,
     ssl: {
         rejectUnauthorized: true,
     }
+    port: 59474
 });
 
 conexion.connect(error => {
