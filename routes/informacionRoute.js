@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const router = express.Router();
 const informacionController = require('../controllers/informacionController');
-const { estaAutenticado } = require('../middlewares/usuarios.js');
+const { estaAutenticado, soloEditorOAdmin } = require('../middlewares/usuarios.js');
 
 // Configuración de multer para almacenamiento
 const storage = multer.diskStorage({
@@ -39,5 +39,7 @@ router.get('/buscar', informacionController.encontrarPorNombreOCurp);
 router.get('/consulta/:id', informacionController.consultaPorId);
 router.post('/guardar', upload.single('fotografia'), informacionController.guardar);
 router.post('/actualizar', upload.single('fotografia'), informacionController.actualizar);
+router.post('/eliminar/:id', soloEditorOAdmin, informacionController.eliminar);
 
 module.exports = router;
+

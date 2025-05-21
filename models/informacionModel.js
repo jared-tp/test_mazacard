@@ -36,7 +36,12 @@ const informacionModel = {
   
     db.query(query, valores, callback);
   },
-  
+
+  eliminar: (id, callback) => {
+    const conexion = require('../db');
+    conexion.query('DELETE FROM informacion WHERE id = ?', [id], callback);
+  },
+
   encontrarPorNombreOCurp: (searchTerm, callback) => {
     const sql = `SELECT * FROM informacion WHERE nombre LIKE ? OR curp LIKE ?`;
     const term = `%${searchTerm}%`;
@@ -67,3 +72,4 @@ const informacionModel = {
 };
 
 module.exports = informacionModel;
+

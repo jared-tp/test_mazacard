@@ -85,13 +85,16 @@
     <div class="search-container">
       <div class="search-input-container">
         <input type="text" name="busqueda" id="nombreBusqueda" class="form-control" 
-               placeholder="Buscar por nombre o CURP..." value="<%= busqueda || '' %>">
+               placeholder="Buscar por nombre..." value="<%= busqueda || '' %>">
       </div>
       <button type="submit" class="btn btn-custom" style="width: 120px;">Limpiar</button>
     </div>
     
     <div class="buttons-container">
       <a href="/consulta" class="btn btn-custom" style="width: 180px;">Agregar nuevo</a>
+      <% if (usuario.rol === 'admin') { %>
+        <a href="/panelAdmin" class="btn btn-danger">Panel Admin</a>
+      <% } %>
     </div>
   </form>
 
@@ -109,34 +112,38 @@
       </thead>
       <tbody id="tablaUsuarios">
         <% if (registros && registros.length > 0) { %>
-          <% registros.forEach(persona => { %>
-            <tr class="clickable-row" data-id="<%= persona.id %>">
-              <td>
-                <a href="/consulta?id=<%= persona.id %>" class="text-decoration-none text-dark">
-                  <%= persona.nombre %>
-                  <% if (persona.apellido_paterno) { %> <%= persona.apellido_paterno %> <% } %>
-                  <% if (persona.apellido_materno) { %> <%= persona.apellido_materno %> <% } %>
-                </a>
-              </td>
-              <td><%= persona.curp %></td>
-              <td><%= persona.folio %></td>
-              <td><%= persona.telefono %></td>
-              <td>
-                <% if (persona.fecha_expedicion) { %>
-                  <%= new Date(persona.fecha_expedicion).toLocaleDateString('es-MX') %>
-                <% } %>
-              </td>
-              <td>
-                <a href="/consulta?id=<%= persona.id %>" class="btn btn-sm btn-outline-primary">Editar</a>
-              </td>
-            </tr>
-          <% }) %>
+        <% registros.forEach(persona => { %>
+        <tr>
+          <td>
+            <%= persona.nombre %>
+            <% if (persona.apellido_paterno) { %> <%= persona.apellido_paterno %> <% } %>
+            <% if (persona.apellido_materno) { %> <%= persona.apellido_materno %> <% } %>
+          </td>
+          <td><%= persona.curp %></td>
+          <td><%= persona.folio %></td>
+          <td><%= persona.telefono %></td>
+          <td>
+            <% if (persona.fecha_expedicion) { %>
+              <%= new Date(persona.fecha_expedicion).toLocaleDateString('es-MX') %>
+            <% } %>
+          </td>
+          <td>
+            <a href="/consulta?id=<%= persona.id %>" class="btn btn-sm btn-outline-primary">Ver</a>
+            <% if (usuario.rol === 'admin' || usuario.rol === 'editor') { %>
+              <form action="/eliminar/<%= persona.id %>" method="POST" class="d-inline" onsubmit="event.stopPropagation(); return confirm('¿Estás seguro de querer eliminar este registro?')">
+                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
         <% } else { %>
-          <tr>
-            <td colspan="6" class="text-center py-4">No se encontraron registros</td>
-          </tr>
-        <% } %>
-      </tbody>
+        <tr>
+          <td colspan="6" class="text-center py-4">No se encontraron registros</td>
+        </tr>
+      <% } %>
+    </tbody>
+
     </table>
   </div>
 

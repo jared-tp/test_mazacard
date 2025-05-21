@@ -117,6 +117,38 @@ const informacionController = {
       });
     });
   },
+
+  eliminar: (req, res) => {
+    const id = req.params.id;
+    const conexion = require('../db');
+
+    
+    conexion.query('SELECT fotografia FROM informacion WHERE id = ?', [id], (err, resultado) => {
+        if (err || resultado.length === 0) {
+          console.error('Error al obtener la fotografía para eliminar:', err);
+          return res.status(500).send('Error interno al buscar registro.');
+        }
+        
+      const foto = resultado[0].fotografia;
+
+      conexion.query('DELETE FROM informacion WHERE id = ?', [id], (error, resultado) => {
+          if (error) {
+            console.error('Error al eliminar el registro:', error);
+            return res.status(500).send('Error al eliminar el registro.');
+          }
+
+        if (foto && foto !== 'default.jpg') {
+          const rutaFoto = path.join(__dirname, '../public/uploads', foto);
+          fs.unlink(rutaFoto, (err) => {
+            if (err) console.warn('No se pudo eliminar la imagen:', err);
+          });
+        }
+
+        res.redirect('/buscar');
+      });
+    });
+  },
+
   
   encontrarPorNombreOCurp: (req, res) => {
     const { busqueda = '', pagina = 1 } = req.query;
