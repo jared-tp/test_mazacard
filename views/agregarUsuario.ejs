@@ -74,9 +74,9 @@
             <label for="rol" class="form-label">Rol del usuario</label>
             <select name="rol" id="rol" class="form-select" required>
               <option value="">Selecciona un rol</option>
-              <option value="lector">Normal</option>
+              <option value="lector">Usuario</option>
               <option value="editor">Editor</option>
-              <option value="admin">Administrador</option>
+              <option value="administrador">Administrador</option>
             </select>
           </div>
 
@@ -101,7 +101,7 @@
   </div>
 
   <script>
-  // Previsualizar la imagen seleccionada
+    
   document.getElementById('imagen').addEventListener('change', function (e) {
     const file = e.target.files[0];
     if (file) {
@@ -113,7 +113,6 @@
     }
   });
 
-  // Validación de contraseñas
   document.querySelector('form').addEventListener('submit', function (e) {
     const clave = document.getElementById('clave').value;
     const confirmar = document.getElementById('confirmar_clave').value;

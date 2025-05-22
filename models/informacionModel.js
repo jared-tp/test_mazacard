@@ -72,4 +72,3 @@ const informacionModel = {
 };
 
 module.exports = informacionModel;
-

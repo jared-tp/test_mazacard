@@ -32,9 +32,7 @@ const upload = multer({
 
 // Rutas públicas
 router.get('/', usuariosController.mostrarLogin);
-router.get('/registro', usuariosController.mostrarRegistro);
 router.post('/login', usuariosController.login);
-router.post('/registro', usuariosController.registrar);
 router.get('/logout', usuariosController.logout);
 
 // Rutas protegidas

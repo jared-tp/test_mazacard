@@ -42,4 +42,3 @@ router.post('/actualizar', upload.single('fotografia'), informacionController.ac
 router.post('/eliminar/:id', soloEditorOAdmin, informacionController.eliminar);
 
 module.exports = router;
-

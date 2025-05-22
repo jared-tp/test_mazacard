@@ -1,4 +1,5 @@
 const informacionModel = require('../models/informacionModel');
+const logModel = require('../models/logModel');
 const fs = require('fs');
 const path = require('path');
 
@@ -69,52 +70,58 @@ const informacionController = {
     console.log('ID:', req.body.id);
     console.log('Nombre:', req.body.nombre);
 
-  
     if (!id || !req.body.nombre || !req.body.curp) {
-      return res.status(400).send('Faltan campos obligatorios');
+        return res.status(400).send('Faltan campos obligatorios');
     }
-  
-    const personaActualizada = {
-      folio: req.body.folio || '',
-      nombre: req.body.nombre,
-      apellido_paterno: req.body.apellido_paterno || '',
-      apellido_materno: req.body.apellido_materno || '',
-      curp: req.body.curp,
-      fecha_expedicion: req.body.fecha_expedicion || null,
-      fecha_expiracion: req.body.fecha_expiracion || null,
-      telefono: req.body.telefono || '',
-      correo_electronico: req.body.correo_electronico || ''
-    };
-  
-    if (req.file) {
-      personaActualizada.fotografia = req.file.filename;
-    }
-  
-    const conexion = require('../db');
-    conexion.query('SELECT fotografia FROM informacion WHERE id = ?', [id], (err, resultado) => {
-      if (err) {
-        console.error('Error al obtener foto anterior:', err);
-        return res.status(500).send('Error interno');
-      }
-  
-      const fotoAnterior = resultado[0]?.fotografia;
 
-      informacionModel.actualizar(id, personaActualizada, (error, resultado) => {
-        if (error) {
-          console.error('Error al actualizar:', error);
-          if (req.file) {
-            fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
-          }
-          return res.status(500).send('Error al actualizar');
+    const personaActualizada = {
+        folio: req.body.folio || '',
+        nombre: req.body.nombre,
+        apellido_paterno: req.body.apellido_paterno || '',
+        apellido_materno: req.body.apellido_materno || '',
+        curp: req.body.curp,
+        fecha_expedicion: req.body.fecha_expedicion || null,
+        fecha_expiracion: req.body.fecha_expiracion || null,
+        telefono: req.body.telefono || '',
+        correo_electronico: req.body.correo_electronico || ''
+    };
+
+    if (req.file) {
+        personaActualizada.fotografia = req.file.filename;
+    }
+
+    const conexion = require('../db');
+    conexion.query('SELECT fotografia, nombre, apellido_paterno, apellido_materno FROM informacion WHERE id = ?', [id], (err, resultado) => {
+        if (err || resultado.length === 0) {
+            console.error('Error al obtener datos anteriores:', err);
+            return res.status(500).send('Error interno');
         }
-  
-        if (req.file && fotoAnterior && fotoAnterior !== 'default.jpg') {
-          fs.unlink(path.join(__dirname, '../public/uploads', fotoAnterior), () => {});
-        }
-        
-        console.log("Se actualizó correctamente")
-        res.redirect('/buscar?actualizado=1');
-      });
+
+        const fotoAnterior = resultado[0].fotografia;
+        const nombreAnterior = `${resultado[0].nombre || ''} ${resultado[0].apellido_paterno || ''} ${resultado[0].apellido_materno || ''}`.trim();
+        const nuevoNombre = `${req.body.nombre || ''} ${req.body.apellido_paterno || ''} ${req.body.apellido_materno || ''}`.trim();
+
+        informacionModel.actualizar(id, personaActualizada, (error, resultado) => {
+            if (error) {
+                console.error('Error al actualizar:', error);
+                if (req.file) {
+                    fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
+                }
+                return res.status(500).send('Error al actualizar');
+            }
+
+            if (req.file && fotoAnterior && fotoAnterior !== 'default.jpg') {
+                fs.unlink(path.join(__dirname, '../public/uploads', fotoAnterior), () => {});
+            }
+
+            const usuario = req.session.usuario;
+            const descripcion = `${usuario.username} (${usuario.rol}) actualizó el nombre de "${nombreAnterior}" a "${nuevoNombre}"`;
+            
+            logModel.registrar(usuario.id, 'actualizar', descripcion, (err) => {
+                if (err) console.error('Error al registrar log:', err);
+                res.redirect('/buscar?actualizado=1');
+            });
+        });
     });
   },
 
@@ -122,30 +129,38 @@ const informacionController = {
     const id = req.params.id;
     const conexion = require('../db');
 
-    
-    conexion.query('SELECT fotografia FROM informacion WHERE id = ?', [id], (err, resultado) => {
+    conexion.query('SELECT fotografia, nombre, apellido_paterno, apellido_materno FROM informacion WHERE id = ?', [id], (err, resultado) => {
         if (err || resultado.length === 0) {
-          console.error('Error al obtener la fotografía para eliminar:', err);
-          return res.status(500).send('Error interno al buscar registro.');
+            console.error('Error al obtener datos para eliminar:', err);
+            return res.status(500).send('Error interno al buscar registro.');
         }
         
-      const foto = resultado[0].fotografia;
+        const foto = resultado[0].fotografia;
+    
+        const nombreCompleto = `${resultado[0].nombre || ''} ${resultado[0].apellido_paterno || ''} ${resultado[0].apellido_materno || ''}`.trim();
 
-      conexion.query('DELETE FROM informacion WHERE id = ?', [id], (error, resultado) => {
-          if (error) {
-            console.error('Error al eliminar el registro:', error);
-            return res.status(500).send('Error al eliminar el registro.');
-          }
+        conexion.query('DELETE FROM informacion WHERE id = ?', [id], (error, resultado) => {
+            if (error) {
+                console.error('Error al eliminar el registro:', error);
+                return res.status(500).send('Error al eliminar el registro.');
+            }
 
-        if (foto && foto !== 'default.jpg') {
-          const rutaFoto = path.join(__dirname, '../public/uploads', foto);
-          fs.unlink(rutaFoto, (err) => {
-            if (err) console.warn('No se pudo eliminar la imagen:', err);
-          });
-        }
+            if (foto && foto !== 'default.jpg') {
+                const rutaFoto = path.join(__dirname, '../public/uploads', foto);
+                fs.unlink(rutaFoto, (err) => {
+                    if (err) console.warn('No se pudo eliminar la imagen:', err);
+                });
+            }
 
-        res.redirect('/buscar');
-      });
+            const usuario = req.session.usuario;
+           
+            const descripcion = `${usuario.username} (${usuario.rol}) eliminó a ${nombreCompleto}`;
+            
+            logModel.registrar(usuario.id, 'eliminar', descripcion, (err) => {
+                if (err) console.error('Error al registrar log:', err);
+                res.redirect('/buscar');
+            });
+        });
     });
   },
 
@@ -233,38 +248,42 @@ const informacionController = {
   },
 
   guardar: (req, res) => {
-
     if (!req.body.nombre || !req.body.curp) {
-      return res.status(400).send('Nombre y CURP son campos requeridos');
+        return res.status(400).send('Nombre y CURP son campos requeridos');
     }
 
     const nuevaPersona = {
-      folio: req.body.folio || '',
-      nombre: req.body.nombre,
-      apellido_paterno: req.body.apellido_paterno || '',
-      apellido_materno: req.body.apellido_materno || '',
-      curp: req.body.curp,
-      fecha_expedicion: req.body.fecha_expedicion || null,
-      fecha_expiracion: req.body.fecha_expiracion || null,
-      fotografia: req.file ? req.file.filename : 'default.jpg',
-      telefono: req.body.telefono || '',
-      correo_electronico: req.body.correo_electronico || ''
+        folio: req.body.folio || '',
+        nombre: req.body.nombre,
+        apellido_paterno: req.body.apellido_paterno || '',
+        apellido_materno: req.body.apellido_materno || '',
+        curp: req.body.curp,
+        fecha_expedicion: req.body.fecha_expedicion || null,
+        fecha_expiracion: req.body.fecha_expiracion || null,
+        fotografia: req.file ? req.file.filename : 'default.jpg',
+        telefono: req.body.telefono || '',
+        correo_electronico: req.body.correo_electronico || ''
     };
 
-
     informacionModel.insertar(nuevaPersona, (error, resultado) => {
-      if (error) {
-        console.error('Error al guardar:', error);
-      
-        
-        if (req.file) {
-          fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
+        if (error) {
+            console.error('Error al guardar:', error);
+            
+            if (req.file) {
+                fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
+            }
+            
+            return res.status(500).send('Error al guardar los datos.');
         }
         
-        return res.status(500).send('Error al guardar los datos.');
-      }
-      
-      res.redirect('/buscar');
+        const usuario = req.session.usuario;
+        const nombreCompleto = `${nuevaPersona.nombre} ${nuevaPersona.apellido_paterno} ${nuevaPersona.apellido_materno}`.trim();        
+        const descripcion = `${usuario.username} (${usuario.rol}) agregó a ${nombreCompleto}`;
+        
+        logModel.registrar(usuario.id, 'agregar', descripcion, (err) => {
+            if (err) console.error('Error al registrar log:', err);
+            res.redirect('/buscar');
+        });
     });
   }
 };

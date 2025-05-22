@@ -28,44 +28,24 @@ const usuariosController = {
                 }
                 
                 req.session.usuario = usuarioDB;
-                const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-                conexion.query('UPDATE usuarios SET ultima_conexion = ? WHERE id = ?', [now, usuarioDB.id]);
-                res.redirect('/buscar');
-            });
-        });
-    },
-
-    mostrarRegistro: (req, res) => {
-        res.render('registro', { error: req.query.error });
-    },
-
-    registrar: (req, res) => {
-        const { usuario, clave, confirmar_clave } = req.body;
-        
-        if (clave !== confirmar_clave) {
-            return res.redirect('/registro?error=Las contraseñas no coinciden');
-        }
-        
-        bcrypt.hash(clave, saltRounds, (err, hash) => {
-            if (err) {
-                console.error('Error al hashear contraseña:', err);
-                return res.redirect('/registro?error=Error en el servidor');
-            }
+              
+                const now = new Date();
+                const offsetMazatlan = 7 * 60 * 60 * 1000; 
+                const localTime = new Date(now.getTime() - offsetMazatlan);
             
-            const conexion = require('../db');
-            conexion.query('INSERT INTO usuarios (username, password) VALUES (?, ?)', 
-                [usuario, hash], 
-                (err, resultados) => {
-                    if (err) {
-                        if (err.code === 'ER_DUP_ENTRY') {
-                            return res.redirect('/registro?error=El nombre de usuario ya existe');
+                const formattedTime = localTime.toISOString().slice(0, 19).replace('T', ' ');
+            
+                conexion.query(
+                    'UPDATE usuarios SET ultima_conexion = ? WHERE id = ?', 
+                    [formattedTime, usuarioDB.id],
+                    (updateErr) => {
+                        if (updateErr) {
+                            console.error('Error al actualizar última conexión:', updateErr);
                         }
-                        console.error('Error al registrar usuario:', err);
-                        return res.redirect('/registro?error=Error al registrar usuario');
+                        res.redirect('/buscar');
                     }
-                    
-                    res.redirect('/?success=Usuario registrado correctamente');
-                });
+                );
+            });
         });
     },
 
@@ -88,7 +68,7 @@ const usuariosController = {
             }
 
             const conexion = require('../db');
-            const fecha_creacion = new Date().toISOString().slice(0, 10); // formato YYYY-MM-DD
+            const fecha_creacion = new Date().toISOString().slice(0, 10); 
 
             const sql = `INSERT INTO usuarios (username, password, fecha_creacion, rol, imagen) VALUES (?, ?, ?, ?, ?)`;
             const valores = [usuario, hash, fecha_creacion, rol, imagen];
@@ -136,7 +116,6 @@ const usuariosController = {
         });
     },
 
-
     panelAdminView: (req, res) => {
         res.render('panelAdmin', { usuario: req.session.usuario });
     },
@@ -165,24 +144,53 @@ const usuariosController = {
 
     logAdminView: (req, res) => {
         const conexion = require('../db');
-        const sql = `
-            SELECT l.id, u.username, l.accion, l.fecha, l.descripcion
+        const { usuario_id, fecha } = req.query;
+
+        let sql = `
+            SELECT l.id, u.username, u.rol, l.accion, l.fecha, l.descripcion
             FROM log_actividad l
             JOIN usuarios u ON l.usuario_id = u.id
-            ORDER BY l.fecha DESC
         `;
+        const condiciones = [];
+        const valores = [];
 
-        conexion.query(sql, (err, results) => {
+        if (usuario_id) {
+            condiciones.push('u.id = ?');
+            valores.push(usuario_id);
+        }
+
+        if (fecha) {
+            condiciones.push('DATE(l.fecha) = ?');
+            valores.push(fecha);
+        }
+
+        if (condiciones.length > 0) {
+            sql += ' WHERE ' + condiciones.join(' AND ');
+        }
+
+        sql += ' ORDER BY l.fecha DESC';
+
+        conexion.query(sql, valores, (err, results) => {
             if (err) {
                 console.error('Error al obtener el log de la actividad: ', err);
                 return res.status(500).send('Error al cargar el log de la actividad');
             }
 
-            res.render('logAdmin', {
-                usuario: req.session.usuario,
-                logs: results
+            conexion.query('SELECT id, username FROM usuarios', (err2, usuarios) => {
+                if (err2) {
+                    console.error('Error al obtener usuarios para filtro:', err2);
+                    return res.status(500).send('Error al cargar usuarios');
+                }
+
+                res.render('logAdmin', {
+                    usuario: req.session.usuario,
+                    logs: results,
+                    usuarios: usuarios,
+                    filtroUsuario: usuario_id || '',
+                    filtroFecha: fecha || ''
+                });
             });
-        });   
+        });
     },
 
     actualizarRol: (req, res) => {
@@ -191,7 +199,6 @@ const usuariosController = {
 
         const conexion = require('../db');
 
-        // Primero obtenemos el rol actual
         conexion.query('SELECT rol FROM usuarios WHERE id = ?', [id], (err, resultados) => {
             if (err) {
                 console.error('Error al buscar el usuario:', err);
@@ -205,11 +212,10 @@ const usuariosController = {
             const rolActual = resultados[0].rol;
 
             if (rolActual === nuevoRol) {
-                // No hay cambios, redirige simplemente
+
                 return res.redirect('/gestionUsuarios');
             }
 
-            // Actualizar solo si hay cambios
             conexion.query('UPDATE usuarios SET rol = ? WHERE id = ?', [nuevoRol, id], (err2) => {
                 if (err2) {
                     console.error('Error al actualizar el rol:', err2);
