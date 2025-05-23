@@ -14,7 +14,7 @@ const informacionModel = {
   actualizar: (id, datos, callback) => {
     const campos = [
       'folio', 'nombre', 'apellido_paterno', 'apellido_materno', 'curp',
-      'fecha_expedicion', 'fecha_expiracion', 'telefono', 'correo_electronico'
+      'fecha_expedicion', 'fecha_expiracion', 'telefono', 'correo_electronico', 'direccion'
     ];
   
     let query = 'UPDATE informacion SET ';
@@ -51,8 +51,8 @@ const informacionModel = {
   insertar: (data, callback) => {
     const sql = `INSERT INTO informacion 
                 (folio, nombre, apellido_paterno, apellido_materno, curp, 
-                 fecha_expedicion, fecha_expiracion, fotografia, telefono, correo_electronico)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                 fecha_expedicion, fecha_expiracion, fotografia, telefono, correo_electronico, direccion)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
       data.folio,
@@ -64,7 +64,8 @@ const informacionModel = {
       data.fecha_expiracion,
       data.fotografia,
       data.telefono,
-      data.correo_electronico
+      data.correo_electronico,
+      data.direccion
     ];
 
     db.query(sql, values, callback);

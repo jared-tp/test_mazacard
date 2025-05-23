@@ -67,63 +67,119 @@ const informacionController = {
   actualizar: (req, res) => {
     const id = req.body.id;
     console.log('Entrando al controlador ACTUALIZAR');
-    console.log('ID:', req.body.id);
-    console.log('Nombre:', req.body.nombre);
-
+    
     if (!id || !req.body.nombre || !req.body.curp) {
         return res.status(400).send('Faltan campos obligatorios');
     }
 
-    const personaActualizada = {
-        folio: req.body.folio || '',
-        nombre: req.body.nombre,
-        apellido_paterno: req.body.apellido_paterno || '',
-        apellido_materno: req.body.apellido_materno || '',
-        curp: req.body.curp,
-        fecha_expedicion: req.body.fecha_expedicion || null,
-        fecha_expiracion: req.body.fecha_expiracion || null,
-        telefono: req.body.telefono || '',
-        correo_electronico: req.body.correo_electronico || ''
-    };
-
-    if (req.file) {
-        personaActualizada.fotografia = req.file.filename;
-    }
-
     const conexion = require('../db');
-    conexion.query('SELECT fotografia, nombre, apellido_paterno, apellido_materno FROM informacion WHERE id = ?', [id], (err, resultado) => {
+    
+    conexion.query('SELECT * FROM informacion WHERE id = ?', [id], (err, resultado) => {
         if (err || resultado.length === 0) {
             console.error('Error al obtener datos anteriores:', err);
             return res.status(500).send('Error interno');
         }
 
-        const fotoAnterior = resultado[0].fotografia;
-        const nombreAnterior = `${resultado[0].nombre || ''} ${resultado[0].apellido_paterno || ''} ${resultado[0].apellido_materno || ''}`.trim();
-        const nuevoNombre = `${req.body.nombre || ''} ${req.body.apellido_paterno || ''} ${req.body.apellido_materno || ''}`.trim();
+        const datosAnteriores = resultado[0];
+        const cambios = [];
+        const nombreCompleto = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
 
+        // Función mejorada para comparar fechas
+        const compararFechas = (fechaForm, fechaBD) => {
+            if (!fechaForm && !fechaBD) return true;
+            if (!fechaForm || !fechaBD) return false;
+            
+            const fechaFormNormalizada = new Date(fechaForm).toISOString().split('T')[0];
+            const fechaBDNormalizada = new Date(fechaBD).toISOString().split('T')[0];
+            
+            return fechaFormNormalizada === fechaBDNormalizada;
+        };
+
+        // Preparar datos actualizados
+        const personaActualizada = {
+            folio: req.body.folio || '',
+            nombre: req.body.nombre,
+            apellido_paterno: req.body.apellido_paterno || '',
+            apellido_materno: req.body.apellido_materno || '',
+            curp: req.body.curp,
+            fecha_expedicion: req.body.fecha_expedicion || null,
+            fecha_expiracion: req.body.fecha_expiracion || null,
+            telefono: req.body.telefono || '',
+            correo_electronico: req.body.correo_electronico || '',
+            direccion: req.body.direccion || ''
+        };
+
+        // Detección de cambios
+        const cambioNombre = req.body.nombre !== datosAnteriores.nombre || 
+                           req.body.apellido_paterno !== datosAnteriores.apellido_paterno || 
+                           req.body.apellido_materno !== datosAnteriores.apellido_materno;
+
+        if (cambioNombre) {
+            const nombreAnterior = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
+            const nuevoNombre = `${req.body.nombre} ${req.body.apellido_paterno} ${req.body.apellido_materno}`.trim();
+            cambios.push(`nombre (de "${nombreAnterior}" a "${nuevoNombre}")`);
+        }
+
+        if (req.body.curp !== datosAnteriores.curp) cambios.push('CURP');
+        if (req.body.telefono !== datosAnteriores.telefono) cambios.push('teléfono');
+        if (req.body.correo_electronico !== datosAnteriores.correo_electronico) cambios.push('correo electrónico');
+        if (req.body.direccion !== datosAnteriores.direccion) cambios.push('direccion');
+        if (req.body.folio !== datosAnteriores.folio) cambios.push('folio');
+
+        if (!compararFechas(req.body.fecha_expedicion, datosAnteriores.fecha_expedicion)) {
+            cambios.push('fecha de expedición');
+        }
+
+        if (!compararFechas(req.body.fecha_expiracion, datosAnteriores.fecha_expiracion)) {
+            cambios.push('fecha de expiración');
+        }
+
+        if (req.file) {
+            personaActualizada.fotografia = req.file.filename;
+            cambios.push('fotografia');
+        }
+
+        if (cambios.length === 0) {
+            return res.redirect('/buscar?sinCambios=1');
+        }
+
+        // Actualización en BD
         informacionModel.actualizar(id, personaActualizada, (error, resultado) => {
             if (error) {
                 console.error('Error al actualizar:', error);
-                if (req.file) {
-                    fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
-                }
+                if (req.file) fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
                 return res.status(500).send('Error al actualizar');
             }
 
-            if (req.file && fotoAnterior && fotoAnterior !== 'default.jpg') {
-                fs.unlink(path.join(__dirname, '../public/uploads', fotoAnterior), () => {});
+            if (req.file && datosAnteriores.fotografia && datosAnteriores.fotografia !== 'default.jpg') {
+                fs.unlink(path.join(__dirname, '../public/uploads', datosAnteriores.fotografia), () => {});
             }
 
+            // Construcción del mensaje de log
             const usuario = req.session.usuario;
-            const descripcion = `${usuario.username} (${usuario.rol}) actualizó el nombre de "${nombreAnterior}" a "${nuevoNombre}"`;
+            let descripcion;
             
+            if (cambios.length === 1) {
+                if (cambioNombre) {
+                    descripcion = `${usuario.username} (${usuario.rol}) actualizó ${cambios[0]}`;
+                } else {
+                    descripcion = `${usuario.username} (${usuario.rol}) actualizó ${cambios[0]} de ${nombreCompleto}`;
+                }
+            } else {
+                const ultimoCambio = cambios.pop();
+                const baseMsg = `${usuario.username} (${usuario.rol}) actualizó ${cambios.join(', ')} y ${ultimoCambio}`;
+                
+                // Solo agregar nombre si no está incluido en los cambios
+                descripcion = cambioNombre ? baseMsg : `${baseMsg} de ${nombreCompleto}`;
+            }
+
             logModel.registrar(usuario.id, 'actualizar', descripcion, (err) => {
                 if (err) console.error('Error al registrar log:', err);
                 res.redirect('/buscar?actualizado=1');
             });
         });
     });
-  },
+},
 
   eliminar: (req, res) => {
     const id = req.params.id;
@@ -262,7 +318,8 @@ const informacionController = {
         fecha_expiracion: req.body.fecha_expiracion || null,
         fotografia: req.file ? req.file.filename : 'default.jpg',
         telefono: req.body.telefono || '',
-        correo_electronico: req.body.correo_electronico || ''
+        correo_electronico: req.body.correo_electronico || '',
+        direccion: req.body.direccion || ''
     };
 
     informacionModel.insertar(nuevaPersona, (error, resultado) => {

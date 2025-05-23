@@ -32,7 +32,6 @@ const usuariosController = {
                 const now = new Date();
                 const offsetMazatlan = 7 * 60 * 60 * 1000; 
                 const localTime = new Date(now.getTime() - offsetMazatlan);
-            
                 const formattedTime = localTime.toISOString().slice(0, 19).replace('T', ' ');
             
                 conexion.query(
