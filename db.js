@@ -3,9 +3,9 @@ const mysql = require('mysql2');
 const conexion = mysql.createConnection({
     host: 'crossover.proxy.rlwy.net',
     user: 'root',              
-    password: 'ePaqIUlMAiBsnPtmLTGZIpRAvxRdxkTV',                           
+    password: 'UwrEVyttliHKGLeAVthhejOqUcItHowH',                           
     database: 'railway',
-    port: 26662
+    port: 32299
 });
 
 conexion.connect(error => {
