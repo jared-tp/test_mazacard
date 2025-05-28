@@ -331,10 +331,11 @@ const informacionController = {
         const usuario = req.session.usuario;
         const nombreCompleto = `${nuevaPersona.nombre} ${nuevaPersona.apellido_paterno} ${nuevaPersona.apellido_materno}`.trim();        
         const descripcion = `${usuario.username} (${usuario.rol}) agregó a ${nombreCompleto}`;
+        const nuevoId = resultado.insertId; 
         
         logModel.registrar(usuario.id, 'agregar', descripcion, (err) => {
             if (err) console.error('Error al registrar log:', err);
-            res.redirect('/buscar');
+            res.redirect(`/consulta/${nuevoId}?success=1`);
         });
     });
   },
