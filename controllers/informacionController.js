@@ -2,6 +2,7 @@ const informacionModel = require('../models/informacionModel');
 const logModel = require('../models/logModel');
 const fs = require('fs');
 const path = require('path');
+const ExcelJS = require('exceljs');
 
 const informacionController = {
   obtenerTodo: (req, res) => {
@@ -84,7 +85,6 @@ const informacionController = {
         const cambios = [];
         const nombreCompleto = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
 
-        // Función mejorada para comparar fechas
         const compararFechas = (fechaForm, fechaBD) => {
             if (!fechaForm && !fechaBD) return true;
             if (!fechaForm || !fechaBD) return false;
@@ -95,13 +95,12 @@ const informacionController = {
             return fechaFormNormalizada === fechaBDNormalizada;
         };
 
-        // Preparar datos actualizados
         const personaActualizada = {
             folio: req.body.folio || '',
             nombre: req.body.nombre,
             apellido_paterno: req.body.apellido_paterno || '',
             apellido_materno: req.body.apellido_materno || '',
-            curp: req.body.curp,
+            curp: req.body.curp.toUpperCase(),
             fecha_expedicion: req.body.fecha_expedicion || null,
             fecha_expiracion: req.body.fecha_expiracion || null,
             telefono: req.body.telefono || '',
@@ -109,7 +108,6 @@ const informacionController = {
             direccion: req.body.direccion || ''
         };
 
-        // Detección de cambios
         const cambioNombre = req.body.nombre !== datosAnteriores.nombre || 
                            req.body.apellido_paterno !== datosAnteriores.apellido_paterno || 
                            req.body.apellido_materno !== datosAnteriores.apellido_materno;
@@ -143,7 +141,6 @@ const informacionController = {
             return res.redirect('/buscar?sinCambios=1');
         }
 
-        // Actualización en BD
         informacionModel.actualizar(id, personaActualizada, (error, resultado) => {
             if (error) {
                 console.error('Error al actualizar:', error);
@@ -155,7 +152,6 @@ const informacionController = {
                 fs.unlink(path.join(__dirname, '../public/uploads', datosAnteriores.fotografia), () => {});
             }
 
-            // Construcción del mensaje de log
             const usuario = req.session.usuario;
             let descripcion;
             
@@ -169,7 +165,6 @@ const informacionController = {
                 const ultimoCambio = cambios.pop();
                 const baseMsg = `${usuario.username} (${usuario.rol}) actualizó ${cambios.join(', ')} y ${ultimoCambio}`;
                 
-                // Solo agregar nombre si no está incluido en los cambios
                 descripcion = cambioNombre ? baseMsg : `${baseMsg} de ${nombreCompleto}`;
             }
 
@@ -313,7 +308,7 @@ const informacionController = {
         nombre: req.body.nombre,
         apellido_paterno: req.body.apellido_paterno || '',
         apellido_materno: req.body.apellido_materno || '',
-        curp: req.body.curp,
+        curp: req.body.curp.toUpperCase(),
         fecha_expedicion: req.body.fecha_expedicion || null,
         fecha_expiracion: req.body.fecha_expiracion || null,
         fotografia: req.file ? req.file.filename : 'default.jpg',
@@ -342,6 +337,154 @@ const informacionController = {
             res.redirect('/buscar');
         });
     });
+  },
+
+  exportarExcel: async (req, res) => {
+    try {
+      const { id } = req.params;
+  
+      const conexion = require('../db');
+      const [persona] = await conexion.promise().query(
+        `SELECT nombre, apellido_paterno, apellido_materno, folio, curp, 
+        fecha_expedicion, fecha_expiracion 
+        FROM informacion WHERE id = ?`, 
+        [id]
+      );
+    
+      if (!persona.length) {
+        return res.status(404).json({ success: false, message: 'Persona no encontrada' });
+      }
+    
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Datos Persona');
+    
+      worksheet.columns = [
+        { header: 'Campo', key: 'campo', width: 20 },
+        { header: 'Valor', key: 'valor', width: 30 }
+      ];
+    
+      const datosPersona = persona[0];
+      const datosParaExcel = [
+        { campo: 'Nombre', valor: datosPersona.nombre },
+        { campo: 'Apellido Paterno', valor: datosPersona.apellido_paterno },
+        { campo: 'Apellido Materno', valor: datosPersona.apellido_materno },
+        { campo: 'Folio', valor: datosPersona.folio },
+        { campo: 'CURP', valor: datosPersona.curp },
+        { campo: 'Fecha Expedición', valor: datosPersona.fecha_expedicion?.toISOString().split('T')[0] || '' },
+        { campo: 'Fecha Expiración', valor: datosPersona.fecha_expiracion?.toISOString().split('T')[0] || '' }
+      ];
+    
+      worksheet.addRows(datosParaExcel);
+    
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.columns.forEach(column => {
+        column.alignment = { vertical: 'middle', horizontal: 'left' };
+      });
+    
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="datos_persona_${id}.xlsx"`
+      );
+    
+      await workbook.xlsx.write(res);
+      res.end();
+  
+      const usuario = req.session.usuario;
+      const nombreCompleto = `${datosPersona.nombre} ${datosPersona.apellido_paterno} ${datosPersona.apellido_materno}`.trim();
+      const descripcion = `${usuario.username} (${usuario.rol}) exportó a Excel los datos de ${nombreCompleto}`;
+    
+      const logModel = require('../models/logModel');
+      logModel.registrar(usuario.id, 'exportar_excel', descripcion, (err) => {
+        if (err) console.error('Error al registrar log:', err);
+      });
+    
+    } catch (error) {
+      console.error('Error al exportar a Excel:', error);
+      res.status(500).json({ success: false, message: 'Error al generar el reporte' });
+    }
+  },
+
+  exportarExcelPorFecha: async (req, res) => {
+    try {
+      const { fecha } = req.query;
+    
+      if (!fecha) {
+        return res.status(400).json({ success: false, message: 'Fecha requerida' });
+      }
+
+      const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
+  
+      const conexion = require('../db');
+      const [registros] = await conexion.promise().query(
+        `SELECT nombre, apellido_paterno, apellido_materno, folio, curp, 
+        fecha_expedicion, fecha_expiracion, telefono, correo_electronico, direccion
+        FROM informacion 
+        WHERE DATE(fecha_expedicion) = ? 
+        ORDER BY fecha_expedicion DESC`,
+        [fechaFormateada]
+      );
+    
+      if (!registros.length) {
+        return res.status(404).json({ success: false, message: 'No hay registros para la fecha seleccionada' });
+      }
+    
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Registros');
+    
+      worksheet.columns = [
+        { header: 'Nombre', key: 'nombre', width: 20 },
+        { header: 'Apellido Paterno', key: 'apellido_paterno', width: 20 },
+        { header: 'Apellido Materno', key: 'apellido_materno', width: 20 },
+        { header: 'Folio', key: 'folio', width: 15 },
+        { header: 'CURP', key: 'curp', width: 20 },
+        { header: 'Teléfono', key: 'telefono', width: 15 },
+        { header: 'Correo', key: 'correo_electronico', width: 25 },
+        { header: 'Dirección', key: 'direccion', width: 30 },
+        { header: 'Fecha Expedición', key: 'fecha_expedicion', width: 15 },
+        { header: 'Fecha Expiración', key: 'fecha_expiracion', width: 15 }
+      ];
+  
+      const datosParaExcel = registros.map(registro => ({
+        ...registro,
+        fecha_expedicion: registro.fecha_expedicion?.toISOString().split('T')[0] || '',
+        fecha_expiracion: registro.fecha_expiracion?.toISOString().split('T')[0] || ''
+      }));
+    
+      worksheet.addRows(datosParaExcel);
+  
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.columns.forEach(column => {
+        column.alignment = { vertical: 'middle', horizontal: 'left' };
+      });
+    
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="registros_${fechaFormateada}.xlsx"`
+      );
+    
+      await workbook.xlsx.write(res);
+      res.end();
+    
+      const usuario = req.session.usuario;
+      const descripcion = `${usuario.username} (${usuario.rol}) exportó registros del ${fechaFormateada}`;
+    
+      const logModel = require('../models/logModel');
+      logModel.registrar(usuario.id, 'exportar_excel', descripcion, (err) => {
+        if (err) console.error('Error al registrar log:', err);
+      });
+    
+    } catch (error) {
+      console.error('Error al exportar a Excel:', error);
+      res.status(500).json({ success: false, message: 'Error al generar el reporte' });
+    }
   }
 };
 

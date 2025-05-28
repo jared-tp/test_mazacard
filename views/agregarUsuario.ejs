@@ -38,14 +38,34 @@
     }
     .logo-imju {
       display: block;
-      margin: 0 auto 2rem auto;
-      max-width: 300px;
+      margin: 0 auto 1.5rem auto;
+      max-width: 100%;
+      height: auto;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 0.5rem;
+      }
+      .card {
+        padding: 1.5rem !important;
+        border-radius: 0.75rem;
+      }
+      .form-label, .form-control, .form-select, .btn {
+        font-size: 0.9rem;
+      }
+      .preview-container {
+        max-width: 200px;
+      }
+      h3 {
+        font-size: 1.25rem;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container d-flex justify-content-center align-items-center min-vh-100">
-    <div class="col-md-6">
+  <div class="container d-flex justify-content-center align-items-center min-vh-100 py-3">
+    <div class="col-lg-6 col-md-8 col-12">
       <img src="/img/IMJU Logo_2.png" alt="Logo IMJU" class="logo-imju">
       <div class="card p-4">
         <h3 class="text-center mb-4" style="color: #691c32;">Registrar nuevo usuario</h3>
@@ -74,7 +94,7 @@
             <label for="rol" class="form-label">Rol del usuario</label>
             <select name="rol" id="rol" class="form-select" required>
               <option value="">Selecciona un rol</option>
-              <option value="lector">Usuario</option>
+              <option value="lector">Normal</option>
               <option value="editor">Editor</option>
               <option value="administrador">Administrador</option>
             </select>
@@ -91,9 +111,9 @@
             </div>
           </div>
 
-          <div class="d-flex justify-content-between">
-            <a href="/gestionUsuarios" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-primary">Registrar</button>
+          <div class="d-flex justify-content-between flex-wrap gap-2">
+            <a href="/gestionUsuarios" class="btn btn-secondary flex-grow-1">Cancelar</a>
+            <button type="submit" class="btn btn-primary flex-grow-1">Registrar</button>
           </div>
         </form>
       </div>
@@ -101,28 +121,26 @@
   </div>
 
   <script>
-    
-  document.getElementById('imagen').addEventListener('change', function (e) {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        document.getElementById('previewImagen').src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  });
+    document.getElementById('imagen').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          document.getElementById('previewImagen').src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
 
-  document.querySelector('form').addEventListener('submit', function (e) {
-    const clave = document.getElementById('clave').value;
-    const confirmar = document.getElementById('confirmar_clave').value;
+    document.querySelector('form').addEventListener('submit', function (e) {
+      const clave = document.getElementById('clave').value;
+      const confirmar = document.getElementById('confirmar_clave').value;
 
-    if (clave !== confirmar) {
-      e.preventDefault();
-      alert('Las contraseñas no coinciden');
-    }
-  });
+      if (clave !== confirmar) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+      }
+    });
   </script>
-
 </body>
 </html>

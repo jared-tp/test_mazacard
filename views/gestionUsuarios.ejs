@@ -13,8 +13,8 @@
     }
     .container-box {
       max-width: 1200px;
-      margin: 2rem auto;
-      padding: 2rem;
+      margin: 1rem auto;
+      padding: 1.5rem;
       border: 2px solid #691c32;
       border-radius: 1rem;
       background-color: #f8f9fa;
@@ -28,8 +28,7 @@
     }
     .user-card {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
       padding: 1rem;
       border: 1px solid #ccc;
       border-radius: 0.75rem;
@@ -40,6 +39,7 @@
       display: flex;
       align-items: center;
       gap: 1rem;
+      margin-bottom: 1rem;
     }
     .user-img {
       width: 60px;
@@ -50,7 +50,56 @@
     }
     .user-actions {
       display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem;
+    }
+    .user-actions form {
+      flex: 1;
+      min-width: 150px;
+    }
+    .user-actions .form-select {
+      margin-bottom: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container-box {
+        margin: 0.5rem;
+        padding: 1rem;
+        border-radius: 0.75rem;
+      }
+      .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .header-actions h2 {
+        text-align: center;
+        margin-bottom: 0.5rem;
+      }
+      .header-actions a {
+        width: 100%;
+        text-align: center;
+      }
+      .user-info {
+        flex-direction: column;
+        text-align: center;
+      }
+      .user-actions form {
+        min-width: 100%;
+      }
+      .btn, .form-select {
+        font-size: 0.9rem;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .user-card {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .user-info {
+        margin-bottom: 0;
+      }
     }
   </style>
 </head>
@@ -62,9 +111,12 @@
     </div>
   <% } %> 
   <div class="container-box">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 header-actions">
       <h2 class="mb-0">Gestión de Usuarios</h2>
-      <a href="/panelAdmin" class="btn btn-outline-secondary">Volver al Panel</a>
+      <div class="d-flex gap-2">
+        <a href="/buscar" class="btn btn-outline-secondary">Regresar al inicio</a>
+        <a href="/panelAdmin" class="btn btn-outline-secondary">Volver al Panel</a>
+      </div>
     </div>
 
     <div class="mb-4 text-end">
@@ -75,7 +127,6 @@
       <% usuarios.forEach(usuario => { %>
         <div class="user-card">
           <div class="user-info">
-            
             <img src="<%= usuario?.imagen ? '/uploads/' + usuario.imagen : '/img/default pp.jpg' %>" alt="Foto usuario" class="user-img">
             <div>
               <strong><%= usuario.username %></strong><br>
@@ -84,16 +135,16 @@
             </div>
           </div>
           <div class="user-actions">
-            <form action="/admin/usuarios/<%= usuario.id %>/rol" method="POST" class="d-flex align-items-center">
-              <select name="rol" class="form-select me-2">
+            <form action="/admin/usuarios/<%= usuario.id %>/rol" method="POST" class="d-flex flex-wrap gap-2">
+              <select name="rol" class="form-select flex-grow-1">
                 <option value="lector" <%= usuario.rol === 'lector' ? 'selected' : '' %>>Usuario</option>
                 <option value="editor" <%= usuario.rol === 'editor' ? 'selected' : '' %>>Editor</option>
                 <option value="admin" <%= usuario.rol === 'admin' ? 'selected' : '' %>>Administrador</option>
               </select>
-              <button class="btn btn-sm btn-outline-primary" type="submit">Actualizar</button>
+              <button class="btn btn-outline-primary flex-grow-1" type="submit">Actualizar</button>
             </form>
-            <form action="/admin/usuarios/<%= usuario.id %>/eliminar" method="POST" class="d-inline" onsubmit="event.stopPropagation(); return confirm('¿Estás seguro de querer eliminar este usuario?')">
-              <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
+            <form action="/admin/usuarios/<%= usuario.id %>/eliminar" method="POST" class="d-flex" onsubmit="event.stopPropagation(); return confirm('¿Estás seguro de querer eliminar este usuario?')">
+              <button class="btn btn-outline-danger flex-grow-1" type="submit">Eliminar</button>
             </form>
           </div>
         </div>
