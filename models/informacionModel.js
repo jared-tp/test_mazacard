@@ -50,22 +50,31 @@ const informacionModel = {
   },
 
   insertar: (data, callback) => {
+    const yearSuffix = new Date().getFullYear().toString().slice(-2); // '25' para 2025
+    const prefix = `0${yearSuffix}`; // '025'
 
-    const getLastFolio = `SELECT MAX(CAST(folio AS UNSIGNED)) as lastFolio FROM informacion`;
-    
+    const getLastFolio = `
+        SELECT MAX(CAST(SUBSTRING(folio, 4) AS UNSIGNED)) AS lastFolio 
+        FROM informacion 
+        WHERE folio LIKE '${prefix}%'
+    `;
+
     db.query(getLastFolio, (err, result) => {
         if (err) return callback(err);
-        
-        const lastFolio = result[0]?.lastFolio || 0;
-        const newFolio = String(lastFolio + 1).padStart(6, '0');
-        
-        const sql = `INSERT INTO informacion 
-                    (folio, nombre, apellido_paterno, apellido_materno, curp, 
-                     fecha_expedicion, fecha_expiracion, fotografia, telefono, correo_electronico, direccion)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-        
+
+        const lastSequential = result[0]?.lastFolio || 0;
+        const newSequential = String(lastSequential + 1).padStart(3, '0'); // '001', '002', etc.
+        const newFolio = `${prefix}${newSequential}`; // '025001'
+
+        const sql = `
+            INSERT INTO informacion 
+            (folio, nombre, apellido_paterno, apellido_materno, curp, 
+             fecha_expedicion, fecha_expiracion, fotografia, telefono, correo_electronico, direccion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
         const values = [
-            newFolio, 
+            newFolio,
             data.nombre,
             data.apellido_paterno,
             data.apellido_materno,
