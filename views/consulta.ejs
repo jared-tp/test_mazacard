@@ -106,7 +106,7 @@
         <% if (persona?.folio) { %>
           <input type="text" class="form-control" id="folio" name="folio" value="<%= persona?.folio || '' %>" readonly>
         <% } else { %>
-          <input type="text" class="form-control" id="folio" name="folio" value ="Generado automáticamente" readonly>
+          <input type="text" class="form-control" id="folio" name="folio" value ="<%= nextFolio || 'Generando folio...' %>" readonly>
         <% } %>
       </div>
       <div class="col-md-6 col-12 mb-2">
@@ -186,6 +186,23 @@
   
     if (successParam === '1') {
         mostrarAlerta('Registro agregado con éxito', 'success');
+    }
+
+    if(!document.querySelector('input[name="id"]').value) {
+      fetch('/api/ultimo-folio')
+       .then(response => {
+        if (!response.ok) throw new Error('Error al obtener folio');
+        return response.json();
+       })
+       .then(data => {
+        if (data.ultimoFolio) {
+          document.getElementById('folio').value = data.ultimoFolio;
+        }
+       })
+       .catch(error => {
+        console.error('Error al obtener el último folio:', error);
+        document.getElementById('folio').value = 'Error al generar folio';
+       });
     }
    });
 

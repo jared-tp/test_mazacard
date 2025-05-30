@@ -39,6 +39,7 @@ router.get('/logout', usuariosController.logout);
 router.get('/buscar', estaAutenticado, informacionController.obtenerTodo);
 router.get('/consulta', estaAutenticado, informacionController.consultaView);
 router.get('/consulta/:id', estaAutenticado, informacionController.consultaPorId);
+router.get('/api/ultimo-folio', informacionController.obtenerUltimoFolio);
 router.get('/panelAdmin', estaAutenticado, soloAdmin, usuariosController.panelAdminView);
 router.get('/gestionUsuarios', estaAutenticado, soloAdmin, usuariosController.gestionUsuariosView);
 router.get('/logAdmin', estaAutenticado, soloAdmin, usuariosController.logAdminView);

@@ -50,8 +50,8 @@ const informacionModel = {
   },
 
   insertar: (data, callback) => {
-    const yearSuffix = new Date().getFullYear().toString().slice(-2); // '25' para 2025
-    const prefix = `0${yearSuffix}`; // '025'
+    const yearSuffix = new Date().getFullYear().toString().slice(-2); 
+    const prefix = `0${yearSuffix}`; 
 
     const getLastFolio = `
         SELECT MAX(CAST(SUBSTRING(folio, 4) AS UNSIGNED)) AS lastFolio 
@@ -63,8 +63,8 @@ const informacionModel = {
         if (err) return callback(err);
 
         const lastSequential = result[0]?.lastFolio || 0;
-        const newSequential = String(lastSequential + 1).padStart(3, '0'); // '001', '002', etc.
-        const newFolio = `${prefix}${newSequential}`; // '025001'
+        const newSequential = String(lastSequential + 1).padStart(3, '0'); 
+        const newFolio = `${prefix}${newSequential}`; 
 
         const sql = `
             INSERT INTO informacion 

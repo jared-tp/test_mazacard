@@ -25,7 +25,25 @@ const informacionController = {
   consultaView: (req, res) => {
     const id = req.query.id;  
     if (!id) {
-      return res.render('consulta', { persona: {} });
+      
+      const yearSuffix = new Date().getFullYear().toString().slice(-2);
+      const prefix = `0${yearSuffix}`;
+    
+      const conexion = require('../db');
+      conexion.query(
+        `SELECT MAX(CAST(SUBSTRING(folio, 4) AS UNSIGNED)) AS lastFolio 
+        FROM informacion WHERE folio LIKE '${prefix}%'`,
+        (err, result) => {
+          const lastSequential = result[0]?.lastFolio || 0;
+          const nextFolio = `${prefix}${String(lastSequential + 1).padStart(3, '0')}`;
+        
+          res.render('consulta', { 
+            persona: {}, 
+            nextFolio 
+          });
+        }
+      );
+      return;
     }
 
     const conexion = require('../db');
@@ -96,8 +114,7 @@ const informacionController = {
         };
 
         const personaActualizada = {
-            // Eliminamos la línea que asignaba el folio desde req.body
-            // folio: req.body.folio || '',  // <-- ESTA LÍNEA SE ELIMINA
+            // folio: req.body.folio || '',  
             nombre: req.body.nombre,
             apellido_paterno: req.body.apellido_paterno || '',
             apellido_materno: req.body.apellido_materno || '',
@@ -124,8 +141,7 @@ const informacionController = {
         if (req.body.correo_electronico !== datosAnteriores.correo_electronico) cambios.push('correo electrónico');
         if (req.body.direccion !== datosAnteriores.direccion) cambios.push('direccion');
         
-        // Eliminamos la verificación de cambios en el folio
-        // if (req.body.folio !== datosAnteriores.folio) cambios.push('folio');  // <-- ESTA LÍNEA SE ELIMINA
+        // if (req.body.folio !== datosAnteriores.folio) cambios.push('folio');  
 
         if (!compararFechas(req.body.fecha_expedicion, datosAnteriores.fecha_expedicion)) {
             cambios.push('fecha de expedición');
@@ -313,7 +329,7 @@ const informacionController = {
         curp: req.body.curp.toUpperCase(),
         fecha_expedicion: req.body.fecha_expedicion || null,
         fecha_expiracion: req.body.fecha_expiracion || null,
-        fotografia: req.file ? req.file.filename : 'default.jpg',
+        fotografia: req.file ? `${req.body.folio}.${req.file.filename.split('.').pop()}` : 'default.jpg',
         telefono: req.body.telefono || '',
         correo_electronico: req.body.correo_electronico || '',
         direccion: req.body.direccion || ''
@@ -328,6 +344,12 @@ const informacionController = {
             }
             
             return res.status(500).send('Error al guardar los datos.');
+        }
+
+         if (req.file) {
+            const oldPath = path.join(__dirname, '../public/uploads', req.file.filename);
+            const newPath = path.join(__dirname, '../public/uploads', nuevaPersona.fotografia);
+            fs.renameSync(oldPath, newPath);
         }
         
         const usuario = req.session.usuario;
@@ -349,7 +371,7 @@ const informacionController = {
       const conexion = require('../db');
       const [persona] = await conexion.promise().query(
         `SELECT nombre, apellido_paterno, apellido_materno, folio, curp, 
-        fecha_expedicion, fecha_expiracion 
+        fecha_expedicion, fecha_expiracion, fotografia 
         FROM informacion WHERE id = ?`, 
         [id]
       );
@@ -368,7 +390,8 @@ const informacionController = {
         { header: 'Folio', key: 'folio', width: 15 },
         { header: 'CURP', key: 'curp', width: 25 },
         { header: 'Fecha expedición', key: 'fecha_expedicion', width: 15 },
-        { header: 'Fecha expiración', key: 'fecha_expiracion', width: 15 }
+        { header: 'Fecha expiración', key: 'fecha_expiracion', width: 15 },
+        { header: 'Fotografía', key: 'fotografia', width: 20 }
       ];
     
       const datosPersona = persona[0];
@@ -380,7 +403,8 @@ const informacionController = {
         folio: datosPersona.folio,
         curp: datosPersona.curp,
         fecha_expedicion: datosPersona.fecha_expedicion?.toISOString().split('T')[0] || '',
-        fecha_expiracion: datosPersona.fecha_expiracion?.toISOString().split('T')[0] || ''
+        fecha_expiracion: datosPersona.fecha_expiracion?.toISOString().split('T')[0] || '',
+        fotografia: datosPersona.fotografia || 'Sin foto' 
       };
     
       worksheet.addRow(datosParaExcel);
@@ -495,6 +519,31 @@ const informacionController = {
       console.error('Error al exportar a Excel:', error);
       res.status(500).json({ success: false, message: 'Error al generar el reporte' });
     }
+  },
+
+  obtenerUltimoFolio: (req, res) => {
+    const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    const prefix = `0${yearSuffix}`;
+
+    const getLastFolio = `
+      SELECT MAX(CAST(SUBSTRING(folio, 4) AS UNSIGNED)) AS lastFolio 
+      FROM informacion 
+      WHERE folio LIKE '${prefix}%'
+    `;
+
+    const conexion = require('../db');
+    conexion.query(getLastFolio, (err, result) => {
+      if (err) {
+        console.error('Error al obtener último folio:', err);
+        return res.status(500).json({ error: 'Error al obtener último folio' });
+      }
+
+      const lastSequential = result[0]?.lastFolio || 0;
+      const newSequential = String(lastSequential + 1).padStart(3, '0');
+      const newFolio = `${prefix}${newSequential}`;
+
+      res.json({ ultimoFolio: newFolio });
+    });
   }
 };
 

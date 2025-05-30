@@ -36,11 +36,13 @@ router.use(estaAutenticado);
 router.get('/informacion', informacionController.obtenerTodo);
 router.get('/consulta', informacionController.consultaView);  
 router.get('/buscar', informacionController.encontrarPorNombreOCurp);
+router.get('/api/ultimo-folio', informacionController.obtenerUltimoFolio);
 router.get('/consulta/:id', informacionController.consultaPorId);
 router.get('/exportar-excel/:id', informacionController.exportarExcel);
 router.get('/exportar-excel-fecha', informacionController.exportarExcelPorFecha);
 router.post('/guardar', upload.single('fotografia'), informacionController.guardar);
 router.post('/actualizar', upload.single('fotografia'), informacionController.actualizar);
 router.post('/eliminar/:id', soloEditorOAdmin, informacionController.eliminar);
+
 
 module.exports = router;
