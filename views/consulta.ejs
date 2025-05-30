@@ -103,7 +103,11 @@
     <div class="row mb-3 text-start">
       <div class="col-md-6 col-12 mb-2">
         <label for="folio" class="form-label">Folio:</label>
-        <input type="text" class="form-control" id="folio" name="folio" required value="<%= persona?.folio || '' %>">
+        <% if (persona?.folio) { %>
+          <input type="text" class="form-control" id="folio" name="folio" value="<%= persona?.folio || '' %>" readonly>
+        <% } else { %>
+          <input type="text" class="form-control" id="folio" name="folio" value ="Generado automáticamente" readonly>
+        <% } %>
       </div>
       <div class="col-md-6 col-12 mb-2">
         <label for="fecha_expedicion" class="form-label">Fecha Expedición:</label>

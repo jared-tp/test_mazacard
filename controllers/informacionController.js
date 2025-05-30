@@ -96,7 +96,8 @@ const informacionController = {
         };
 
         const personaActualizada = {
-            folio: req.body.folio || '',
+            // Eliminamos la línea que asignaba el folio desde req.body
+            // folio: req.body.folio || '',  // <-- ESTA LÍNEA SE ELIMINA
             nombre: req.body.nombre,
             apellido_paterno: req.body.apellido_paterno || '',
             apellido_materno: req.body.apellido_materno || '',
@@ -122,7 +123,9 @@ const informacionController = {
         if (req.body.telefono !== datosAnteriores.telefono) cambios.push('teléfono');
         if (req.body.correo_electronico !== datosAnteriores.correo_electronico) cambios.push('correo electrónico');
         if (req.body.direccion !== datosAnteriores.direccion) cambios.push('direccion');
-        if (req.body.folio !== datosAnteriores.folio) cambios.push('folio');
+        
+        // Eliminamos la verificación de cambios en el folio
+        // if (req.body.folio !== datosAnteriores.folio) cambios.push('folio');  // <-- ESTA LÍNEA SE ELIMINA
 
         if (!compararFechas(req.body.fecha_expedicion, datosAnteriores.fecha_expedicion)) {
             cambios.push('fecha de expedición');
@@ -174,7 +177,7 @@ const informacionController = {
             });
         });
     });
-},
+  },
 
   eliminar: (req, res) => {
     const id = req.params.id;
@@ -215,7 +218,6 @@ const informacionController = {
     });
   },
 
-  
   encontrarPorNombreOCurp: (req, res) => {
     const { busqueda = '', pagina = 1 } = req.query;
     const limite = 10;
@@ -304,7 +306,7 @@ const informacionController = {
     }
 
     const nuevaPersona = {
-        folio: req.body.folio || '',
+        folio: '',
         nombre: req.body.nombre,
         apellido_paterno: req.body.apellido_paterno || '',
         apellido_materno: req.body.apellido_materno || '',
@@ -360,24 +362,31 @@ const informacionController = {
       const worksheet = workbook.addWorksheet('Datos Persona');
     
       worksheet.columns = [
-        { header: 'Campo', key: 'campo', width: 20 },
-        { header: 'Valor', key: 'valor', width: 30 }
+        { header: 'Nombre', key: 'nombre', width: 20 },
+        { header: 'Apellido Paterno', key: 'apellido_paterno', width: 20 },
+        { header: 'Apellido Materno', key: 'apellido_materno', width: 20 },
+        { header: 'Folio', key: 'folio', width: 15 },
+        { header: 'CURP', key: 'curp', width: 25 },
+        { header: 'Fecha expedición', key: 'fecha_expedicion', width: 15 },
+        { header: 'Fecha expiración', key: 'fecha_expiracion', width: 15 }
       ];
     
       const datosPersona = persona[0];
-      const datosParaExcel = [
-        { campo: 'Nombre', valor: datosPersona.nombre },
-        { campo: 'Apellido Paterno', valor: datosPersona.apellido_paterno },
-        { campo: 'Apellido Materno', valor: datosPersona.apellido_materno },
-        { campo: 'Folio', valor: datosPersona.folio },
-        { campo: 'CURP', valor: datosPersona.curp },
-        { campo: 'Fecha Expedición', valor: datosPersona.fecha_expedicion?.toISOString().split('T')[0] || '' },
-        { campo: 'Fecha Expiración', valor: datosPersona.fecha_expiracion?.toISOString().split('T')[0] || '' }
-      ];
+      
+      const datosParaExcel = {
+        nombre: datosPersona.nombre,
+        apellido_paterno: datosPersona.apellido_paterno,
+        apellido_materno: datosPersona.apellido_materno,
+        folio: datosPersona.folio,
+        curp: datosPersona.curp,
+        fecha_expedicion: datosPersona.fecha_expedicion?.toISOString().split('T')[0] || '',
+        fecha_expiracion: datosPersona.fecha_expiracion?.toISOString().split('T')[0] || ''
+      };
     
-      worksheet.addRows(datosParaExcel);
+      worksheet.addRow(datosParaExcel);
     
       worksheet.getRow(1).font = { bold: true };
+      
       worksheet.columns.forEach(column => {
         column.alignment = { vertical: 'middle', horizontal: 'left' };
       });
@@ -390,7 +399,7 @@ const informacionController = {
         'Content-Disposition',
         `attachment; filename="datos_persona_${id}.xlsx"`
       );
-    
+  
       await workbook.xlsx.write(res);
       res.end();
   

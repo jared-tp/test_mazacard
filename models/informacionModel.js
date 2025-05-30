@@ -13,7 +13,8 @@ const informacionModel = {
 
   actualizar: (id, datos, callback) => {
     const campos = [
-      'folio', 'nombre', 'apellido_paterno', 'apellido_materno', 'curp',
+      // 'folio', //
+      'nombre', 'apellido_paterno', 'apellido_materno', 'curp',
       'fecha_expedicion', 'fecha_expiracion', 'telefono', 'correo_electronico', 'direccion'
     ];
   
@@ -49,26 +50,36 @@ const informacionModel = {
   },
 
   insertar: (data, callback) => {
-    const sql = `INSERT INTO informacion 
-                (folio, nombre, apellido_paterno, apellido_materno, curp, 
-                 fecha_expedicion, fecha_expiracion, fotografia, telefono, correo_electronico, direccion)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const values = [
-      data.folio,
-      data.nombre,
-      data.apellido_paterno,
-      data.apellido_materno,
-      data.curp,
-      data.fecha_expedicion,
-      data.fecha_expiracion,
-      data.fotografia,
-      data.telefono,
-      data.correo_electronico,
-      data.direccion
-    ];
 
-    db.query(sql, values, callback);
+    const getLastFolio = `SELECT MAX(CAST(folio AS UNSIGNED)) as lastFolio FROM informacion`;
+    
+    db.query(getLastFolio, (err, result) => {
+        if (err) return callback(err);
+        
+        const lastFolio = result[0]?.lastFolio || 0;
+        const newFolio = String(lastFolio + 1).padStart(6, '0');
+        
+        const sql = `INSERT INTO informacion 
+                    (folio, nombre, apellido_paterno, apellido_materno, curp, 
+                     fecha_expedicion, fecha_expiracion, fotografia, telefono, correo_electronico, direccion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        
+        const values = [
+            newFolio, 
+            data.nombre,
+            data.apellido_paterno,
+            data.apellido_materno,
+            data.curp,
+            data.fecha_expedicion,
+            data.fecha_expiracion,
+            data.fotografia,
+            data.telefono,
+            data.correo_electronico,
+            data.direccion
+        ];
+
+        db.query(sql, values, callback);
+    });
   }
 };
 
