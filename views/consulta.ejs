@@ -233,6 +233,8 @@
 
   document.getElementById('exportExcel')?.addEventListener('click', async function() {
     const personaId = document.querySelector('input[name="id"]').value;
+    const personaFolio = document.querySelector('input[name="folio"]').value;
+    const personaNombre = document.querySelector('input[name="nombre"]').value;
     
     if (!personaId) {
       mostrarAlerta('No hay datos para exportar');
@@ -247,7 +249,7 @@
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `datos_persona_${personaId}.xlsx`;
+        a.download = `datos_${personaNombre}_${personaFolio}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -316,7 +318,11 @@
             window.location.href = response.url;
         } else {
             const errorData = await response.json();
-            mostrarAlerta(errorData.message || 'Error al procesar la solicitud');
+            if (errorData.message === 'La CURP ya está registrada en el sistema' || errorData.message === 'La CURP ya está registrada en otro registro del sistema') {
+              mostrarAlerta(errorData.message, 'warning');
+            } else {
+              mostrarAlerta(errorData.message || 'Error al procesar la solicitud.');
+            }
         }
     } catch (error) {
         console.error('Error:', error);

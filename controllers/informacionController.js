@@ -91,107 +91,125 @@ const informacionController = {
         return res.status(400).send('Faltan campos obligatorios');
     }
 
+    const curp = req.body.curp.toUpperCase();
     const conexion = require('../db');
-    
-    conexion.query('SELECT * FROM informacion WHERE id = ?', [id], (err, resultado) => {
-        if (err || resultado.length === 0) {
-            console.error('Error al obtener datos anteriores:', err);
-            return res.status(500).send('Error interno');
+
+    conexion.query('SELECT id FROM informacion WHERE curp = ? AND id != ?', [curp, id], (err, resultados) => {
+        if (err) {
+            console.error('Error al verificar CURP:', err);
+            return res.status(500).send('Error al verificar datos');
         }
 
-        const datosAnteriores = resultado[0];
-        const cambios = [];
-        const nombreCompleto = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
-
-        const compararFechas = (fechaForm, fechaBD) => {
-            if (!fechaForm && !fechaBD) return true;
-            if (!fechaForm || !fechaBD) return false;
-            
-            const fechaFormNormalizada = new Date(fechaForm).toISOString().split('T')[0];
-            const fechaBDNormalizada = new Date(fechaBD).toISOString().split('T')[0];
-            
-            return fechaFormNormalizada === fechaBDNormalizada;
-        };
-
-        const personaActualizada = {
-            // folio: req.body.folio || '',  
-            nombre: req.body.nombre,
-            apellido_paterno: req.body.apellido_paterno || '',
-            apellido_materno: req.body.apellido_materno || '',
-            curp: req.body.curp.toUpperCase(),
-            fecha_expedicion: req.body.fecha_expedicion || null,
-            fecha_expiracion: req.body.fecha_expiracion || null,
-            telefono: req.body.telefono || '',
-            correo_electronico: req.body.correo_electronico || '',
-            direccion: req.body.direccion || ''
-        };
-
-        const cambioNombre = req.body.nombre !== datosAnteriores.nombre || 
-                           req.body.apellido_paterno !== datosAnteriores.apellido_paterno || 
-                           req.body.apellido_materno !== datosAnteriores.apellido_materno;
-
-        if (cambioNombre) {
-            const nombreAnterior = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
-            const nuevoNombre = `${req.body.nombre} ${req.body.apellido_paterno} ${req.body.apellido_materno}`.trim();
-            cambios.push(`nombre (de "${nombreAnterior}" a "${nuevoNombre}")`);
-        }
-
-        if (req.body.curp !== datosAnteriores.curp) cambios.push('CURP');
-        if (req.body.telefono !== datosAnteriores.telefono) cambios.push('teléfono');
-        if (req.body.correo_electronico !== datosAnteriores.correo_electronico) cambios.push('correo electrónico');
-        if (req.body.direccion !== datosAnteriores.direccion) cambios.push('direccion');
-        
-        // if (req.body.folio !== datosAnteriores.folio) cambios.push('folio');  
-
-        if (!compararFechas(req.body.fecha_expedicion, datosAnteriores.fecha_expedicion)) {
-            cambios.push('fecha de expedición');
-        }
-
-        if (!compararFechas(req.body.fecha_expiracion, datosAnteriores.fecha_expiracion)) {
-            cambios.push('fecha de expiración');
-        }
-
-        if (req.file) {
-            personaActualizada.fotografia = req.file.filename;
-            cambios.push('fotografia');
-        }
-
-        if (cambios.length === 0) {
-            return res.redirect('/buscar?sinCambios=1');
-        }
-
-        informacionModel.actualizar(id, personaActualizada, (error, resultado) => {
-            if (error) {
-                console.error('Error al actualizar:', error);
-                if (req.file) fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
-                return res.status(500).send('Error al actualizar');
-            }
-
-            if (req.file && datosAnteriores.fotografia && datosAnteriores.fotografia !== 'default.jpg') {
-                fs.unlink(path.join(__dirname, '../public/uploads', datosAnteriores.fotografia), () => {});
-            }
-
-            const usuario = req.session.usuario;
-            let descripcion;
-            
-            if (cambios.length === 1) {
-                if (cambioNombre) {
-                    descripcion = `${usuario.username} (${usuario.rol}) actualizó ${cambios[0]}`;
-                } else {
-                    descripcion = `${usuario.username} (${usuario.rol}) actualizó ${cambios[0]} de ${nombreCompleto}`;
-                }
-            } else {
-                const ultimoCambio = cambios.pop();
-                const baseMsg = `${usuario.username} (${usuario.rol}) actualizó ${cambios.join(', ')} y ${ultimoCambio}`;
-                
-                descripcion = cambioNombre ? baseMsg : `${baseMsg} de ${nombreCompleto}`;
-            }
-
-            logModel.registrar(usuario.id, 'actualizar', descripcion, (err) => {
-                if (err) console.error('Error al registrar log:', err);
-                res.redirect('/buscar?actualizado=1');
+        if (resultados.length > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'La CURP ya está registrada en otro registro del sistema' 
             });
-        });
+        } else {
+            conexion.query('SELECT * FROM informacion WHERE id = ?', [id], (err, resultado) => {
+                if (err || resultado.length === 0) {
+                    console.error('Error al obtener datos anteriores:', err);
+                    return res.status(500).send('Error interno');
+                }
+
+                const datosAnteriores = resultado[0];
+                const cambios = [];
+                const nombreCompleto = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
+
+                const compararFechas = (fechaForm, fechaBD) => {
+                    if (!fechaForm && !fechaBD) return true;
+                    if (!fechaForm || !fechaBD) return false;
+                    
+                    const fechaFormNormalizada = new Date(fechaForm).toISOString().split('T')[0];
+                    const fechaBDNormalizada = new Date(fechaBD).toISOString().split('T')[0];
+                    
+                    return fechaFormNormalizada === fechaBDNormalizada;
+                };
+
+                const personaActualizada = {
+                    nombre: req.body.nombre,
+                    apellido_paterno: req.body.apellido_paterno || '',
+                    apellido_materno: req.body.apellido_materno || '',
+                    curp: curp,
+                    fecha_expedicion: req.body.fecha_expedicion || null,
+                    fecha_expiracion: req.body.fecha_expiracion || null,
+                    telefono: req.body.telefono || '',
+                    correo_electronico: req.body.correo_electronico || '',
+                    direccion: req.body.direccion || ''
+                };
+
+                const cambioNombre = req.body.nombre !== datosAnteriores.nombre || 
+                                   req.body.apellido_paterno !== datosAnteriores.apellido_paterno || 
+                                   req.body.apellido_materno !== datosAnteriores.apellido_materno;
+
+                if (cambioNombre) {
+                    const nombreAnterior = `${datosAnteriores.nombre} ${datosAnteriores.apellido_paterno} ${datosAnteriores.apellido_materno}`.trim();
+                    const nuevoNombre = `${req.body.nombre} ${req.body.apellido_paterno} ${req.body.apellido_materno}`.trim();
+                    cambios.push(`nombre (de "${nombreAnterior}" a "${nuevoNombre}")`);
+                }
+
+                if (req.body.curp !== datosAnteriores.curp) cambios.push('CURP');
+                if (req.body.telefono !== datosAnteriores.telefono) cambios.push('teléfono');
+                if (req.body.correo_electronico !== datosAnteriores.correo_electronico) cambios.push('correo electrónico');
+                if (req.body.direccion !== datosAnteriores.direccion) cambios.push('direccion');
+
+                if (!compararFechas(req.body.fecha_expedicion, datosAnteriores.fecha_expedicion)) {
+                    cambios.push('fecha de expedición');
+                }
+
+                if (!compararFechas(req.body.fecha_expiracion, datosAnteriores.fecha_expiracion)) {
+                    cambios.push('fecha de expiración');
+                }
+
+                if (req.file) {
+                    personaActualizada.fotografia = `${datosAnteriores.folio}.${req.file.filename.split('.').pop()}`;
+                    cambios.push('fotografia');
+                }
+
+                if (cambios.length === 0) {
+                    return res.redirect('/buscar?sinCambios=1');
+                }
+
+                informacionModel.actualizar(id, personaActualizada, (error, resultado) => {
+                    if (error) {
+                        console.error('Error al actualizar:', error);
+                        if (req.file) fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
+                        return res.status(500).send('Error al actualizar');
+                    }
+
+                    if (req.file && datosAnteriores.fotografia && datosAnteriores.fotografia !== 'default.jpg') {
+                        fs.unlink(path.join(__dirname, '../public/uploads', datosAnteriores.fotografia), () => {});
+                    }
+
+                    if (req.file) {
+                        const oldPath = path.join(__dirname, '../public/uploads', req.file.filename);
+                        const newPath = path.join(__dirname, '../public/uploads', personaActualizada.fotografia);
+                        fs.renameSync(oldPath, newPath);
+                    }
+
+                    const usuario = req.session.usuario;
+                    let descripcion;
+                    
+                    if (cambios.length === 1) {
+                        if (cambioNombre) {
+                            descripcion = `${usuario.username} (${usuario.rol}) actualizó ${cambios[0]}`;
+                        } else {
+                            descripcion = `${usuario.username} (${usuario.rol}) actualizó ${cambios[0]} de ${nombreCompleto}`;
+                        }
+                    } else {
+                        const ultimoCambio = cambios.pop();
+                        const baseMsg = `${usuario.username} (${usuario.rol}) actualizó ${cambios.join(', ')} y ${ultimoCambio}`;
+                        
+                        descripcion = cambioNombre ? baseMsg : `${baseMsg} de ${nombreCompleto}`;
+                    }
+
+                    logModel.registrar(usuario.id, 'actualizar', descripcion, (err) => {
+                        if (err) console.error('Error al registrar log:', err);
+                        res.redirect('/buscar?actualizado=1');
+                    });
+                });
+            });
+        }
     });
   },
 
@@ -321,53 +339,78 @@ const informacionController = {
         return res.status(400).send('Nombre y CURP son campos requeridos');
     }
 
-    const nuevaPersona = {
-        folio: '',
-        nombre: req.body.nombre,
-        apellido_paterno: req.body.apellido_paterno || '',
-        apellido_materno: req.body.apellido_materno || '',
-        curp: req.body.curp.toUpperCase(),
-        fecha_expedicion: req.body.fecha_expedicion || null,
-        fecha_expiracion: req.body.fecha_expiracion || null,
-        fotografia: req.file ? `${req.body.folio}.${req.file.filename.split('.').pop()}` : 'default.jpg',
-        telefono: req.body.telefono || '',
-        correo_electronico: req.body.correo_electronico || '',
-        direccion: req.body.direccion || ''
-    };
+    const curp = req.body.curp.toUpperCase();
+    const conexion = require('../db');
 
-    informacionModel.insertar(nuevaPersona, (error, resultado) => {
-        if (error) {
-            console.error('Error al guardar:', error);
-            
+    conexion.query('SELECT id FROM informacion WHERE curp = ?', [curp], (err, resultados) => {
+        if (err) {
+            console.error('Error al verificar CURP:', err);
+            return res.status(500).send('Error al verificar datos');
+        }
+
+        if (resultados.length > 0) {
+            if (req.body.id && resultados[0].id == req.body.id) {
+                continuarGuardado();
+            } else {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'La CURP ya está registrada en el sistema' 
+                });
+            }
+        } else {
+            continuarGuardado();
+        }
+    });
+
+    function continuarGuardado() {
+        const nuevaPersona = {
+            folio: req.body.folio || '',
+            nombre: req.body.nombre,
+            apellido_paterno: req.body.apellido_paterno || '',
+            apellido_materno: req.body.apellido_materno || '',
+            curp: curp,
+            fecha_expedicion: req.body.fecha_expedicion || null,
+            fecha_expiracion: req.body.fecha_expiracion || null,
+            fotografia: req.file ? `${req.body.folio}.${req.file.filename.split('.').pop()}` : 'default.jpg',
+            telefono: req.body.telefono || '',
+            correo_electronico: req.body.correo_electronico || '',
+            direccion: req.body.direccion || ''
+        };
+
+        informacionModel.insertar(nuevaPersona, (error, resultado) => {
+            if (error) {
+                console.error('Error al guardar:', error);
+                
+                if (req.file) {
+                    fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
+                }
+                
+                return res.status(500).send('Error al guardar los datos.');
+            }
+
             if (req.file) {
-                fs.unlinkSync(path.join(__dirname, '../public/uploads', req.file.filename));
+                const oldPath = path.join(__dirname, '../public/uploads', req.file.filename);
+                const newPath = path.join(__dirname, '../public/uploads', nuevaPersona.fotografia);
+                fs.renameSync(oldPath, newPath);
             }
             
-            return res.status(500).send('Error al guardar los datos.');
-        }
-
-         if (req.file) {
-            const oldPath = path.join(__dirname, '../public/uploads', req.file.filename);
-            const newPath = path.join(__dirname, '../public/uploads', nuevaPersona.fotografia);
-            fs.renameSync(oldPath, newPath);
-        }
-        
-        const usuario = req.session.usuario;
-        const nombreCompleto = `${nuevaPersona.nombre} ${nuevaPersona.apellido_paterno} ${nuevaPersona.apellido_materno}`.trim();        
-        const descripcion = `${usuario.username} (${usuario.rol}) agregó a ${nombreCompleto}`;
-        const nuevoId = resultado.insertId; 
-        
-        logModel.registrar(usuario.id, 'agregar', descripcion, (err) => {
-            if (err) console.error('Error al registrar log:', err);
-            res.redirect(`/consulta/${nuevoId}?success=1`);
+            const usuario = req.session.usuario;
+            const nombreCompleto = `${nuevaPersona.nombre} ${nuevaPersona.apellido_paterno} ${nuevaPersona.apellido_materno}`.trim();        
+            const descripcion = `${usuario.username} (${usuario.rol}) agregó a ${nombreCompleto}`;
+            const nuevoId = resultado.insertId; 
+            
+            logModel.registrar(usuario.id, 'agregar', descripcion, (err) => {
+                if (err) console.error('Error al registrar log:', err);
+                res.redirect(`/consulta/${nuevoId}?success=1`);
+            });
         });
-    });
+    }
   },
 
   exportarExcel: async (req, res) => {
     try {
       const { id } = req.params;
-  
+    
       const conexion = require('../db');
       const [persona] = await conexion.promise().query(
         `SELECT nombre, apellido_paterno, apellido_materno, folio, curp, 
@@ -421,7 +464,7 @@ const informacionController = {
       );
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="datos_persona_${id}.xlsx"`
+        `attachment; filename="datos_${datosPersona.nombre}_${datosPersona.folio}.xlsx"`
       );
   
       await workbook.xlsx.write(res);
@@ -515,6 +558,87 @@ const informacionController = {
         if (err) console.error('Error al registrar log:', err);
       });
     
+    } catch (error) {
+      console.error('Error al exportar a Excel:', error);
+      res.status(500).json({ success: false, message: 'Error al generar el reporte' });
+    }
+  },
+
+  exportarExcelPorRangoFechas: async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+  
+      if (!startDate || !endDate) {
+        return res.status(400).json({ success: false, message: 'Fechas requeridas' });
+      }
+
+      if (startDate > endDate) {
+        return res.status(400).json({ success: false, message: 'La fecha inicial no puede ser mayor que la fecha final' });
+      }
+
+      const conexion = require('../db');
+      const [registros] = await conexion.promise().query(
+        `SELECT nombre, apellido_paterno, apellido_materno, folio, curp, 
+        fecha_expedicion, fecha_expiracion, telefono, correo_electronico, direccion
+        FROM informacion 
+        WHERE DATE(fecha_expedicion) BETWEEN ? AND ?
+        ORDER BY fecha_expedicion DESC`,
+        [startDate, endDate]
+      );
+  
+      if (!registros.length) {
+        return res.status(404).json({ success: false, message: 'No hay registros para el rango de fechas seleccionado' });
+      }
+  
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Registros');
+  
+      worksheet.columns = [
+        { header: 'Nombre', key: 'nombre', width: 20 },
+        { header: 'Apellido Paterno', key: 'apellido_paterno', width: 20 },
+        { header: 'Apellido Materno', key: 'apellido_materno', width: 20 },
+        { header: 'Folio', key: 'folio', width: 15 },
+        { header: 'CURP', key: 'curp', width: 20 },
+        { header: 'Teléfono', key: 'telefono', width: 15 },
+        { header: 'Correo', key: 'correo_electronico', width: 25 },
+        { header: 'Dirección', key: 'direccion', width: 30 },
+        { header: 'Fecha Expedición', key: 'fecha_expedicion', width: 15 },
+        { header: 'Fecha Expiración', key: 'fecha_expiracion', width: 15 }
+      ];
+
+      const datosParaExcel = registros.map(registro => ({
+        ...registro,
+        fecha_expedicion: registro.fecha_expedicion?.toISOString().split('T')[0] || '',
+        fecha_expiracion: registro.fecha_expiracion?.toISOString().split('T')[0] || ''
+      }));
+  
+      worksheet.addRows(datosParaExcel);
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.columns.forEach(column => {
+        column.alignment = { vertical: 'middle', horizontal: 'left' };
+      });
+  
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="registros_${startDate}_a_${endDate}.xlsx"`
+      );
+  
+      await workbook.xlsx.write(res);
+      res.end();
+  
+      const usuario = req.session.usuario;
+      const descripcion = `${usuario.username} (${usuario.rol}) exportó registros del ${startDate} al ${endDate}`;
+  
+      const logModel = require('../models/logModel');
+      logModel.registrar(usuario.id, 'exportar_excel', descripcion, (err) => {
+        if (err) console.error('Error al registrar log:', err);
+      });
+  
     } catch (error) {
       console.error('Error al exportar a Excel:', error);
       res.status(500).json({ success: false, message: 'Error al generar el reporte' });

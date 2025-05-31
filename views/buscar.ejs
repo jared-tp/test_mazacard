@@ -123,19 +123,46 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="exportModalLabel">Exportar registros por fecha</h5>
+          <h5 class="modal-title" id="exportModalLabel">Exportar registros</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
-          <form id="exportForm">
-            <div class="mb-3">
-              <label for="exportDate" class="form-label">Seleccione la fecha:</label>
-              <input type="date" class="form-control" id="exportDate" name="exportDate" required>
+          <ul class="nav nav-tabs" id="exportTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="single-date-tab" data-bs-toggle="tab" data-bs-target="#single-date" type="button" role="tab" aria-controls="single-date" aria-selected="true">Por fecha</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="range-date-tab" data-bs-toggle="tab" data-bs-target="#range-date" type="button" role="tab" aria-controls="range-date" aria-selected="false">Por rango</button>
+            </li>
+          </ul>
+          <div class="tab-content p-3" id="exportTabsContent">
+            <div class="tab-pane fade show active" id="single-date" role="tabpanel" aria-labelledby="single-date-tab">
+              <form id="exportBySingleDate">
+                <div class="mb-3">
+                  <label for="exportDate" class="form-label">Seleccione la fecha:</label>
+                  <input type="date" class="form-control" id="exportDate" name="exportDate" required>
+                </div>
+                <div class="form-text">
+                  Se exportarán todos los registros con fecha de expedición en el día seleccionado.
+                </div>
+              </form>
             </div>
-            <div class="form-text">
-              Se exportarán todos los registros con fecha de expedición en el día seleccionado.
+            <div class="tab-pane fade" id="range-date" role="tabpanel" aria-labelledby="range-date-tab">
+              <form id="exportByDateRange">
+                <div class="mb-3">
+                  <label for="startDate" class="form-label">Fecha inicial:</label>
+                  <input type="date" class="form-control" id="startDate" name="startDate" required>
+                </div>
+                <div class="mb-3">
+                  <label for="endDate" class="form-label">Fecha final:</label>
+                  <input type="date" class="form-control" id="endDate" name="endDate" required>
+                </div>
+                <div class="form-text">
+                  Se exportarán todos los registros con fecha de expedición dentro del rango seleccionado.
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -222,6 +249,8 @@
     const today = new Date();
     const formattedDate = today.toISOString().substr(0, 10);
     document.getElementById('exportDate').value = formattedDate;
+    document.getElementById('startDate').value = formattedDate;
+    document.getElementById('endDate').value = formattedDate;
   });
 
   function mostrarAlerta(message, type = 'danger') {
@@ -242,9 +271,19 @@
   }
 
   document.getElementById('confirmExport').addEventListener('click', async function() {
+    const activeTab = document.querySelector('.nav-link.active').id;
+  
+    if (activeTab === 'single-date-tab') {
+      await exportBySingleDate();
+    } else if (activeTab === 'range-date-tab') {
+      await exportByDateRange();
+    }
+  });
+
+  async function exportBySingleDate() {
     const fecha = document.getElementById('exportDate').value;
     if (!fecha) {
-      alert('Por favor seleccione una fecha');
+      mostrarAlerta('Por favor seleccione una fecha');
       return;
     }
 
@@ -270,7 +309,45 @@
       const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
       modal.hide();
     }
-  });
+  }
+
+  async function exportByDateRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+  
+    if (!startDate || !endDate) {
+      mostrarAlerta('Por favor seleccione ambas fechas');
+      return;
+    }
+  
+    if (startDate > endDate) {
+      mostrarAlerta('La fecha inicial no puede ser mayor que la fecha final');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/exportar-excel-rango-fechas?startDate=${startDate}&endDate=${endDate}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `registros_${startDate}_a_${endDate}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        const errorData = await response.json();
+        mostrarAlerta(errorData.message);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      mostrarAlerta('Error al intentar exportar los datos');
+    } finally {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+      modal.hide();
+    }
+  }
 
   document.getElementById('nombreBusqueda').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
