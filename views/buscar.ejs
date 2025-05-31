@@ -101,9 +101,8 @@
     <div class="search-container">
       <div class="search-input-container">
         <input type="text" name="busqueda" id="nombreBusqueda" class="form-control"
-               placeholder="Buscar por nombre..." value="<%= busqueda || '' %>">
+               placeholder="Buscar por nombre, CURP o folio..." value="<%= busqueda || '' %>">
       </div>
-      <button type="submit" class="btn btn-custom" style="min-width: 120px;">Buscar</button>
     </div>
 
     <div class="buttons-container">
@@ -349,16 +348,34 @@
     }
   }
 
-  document.getElementById('nombreBusqueda').addEventListener('input', function(e) {
-    const searchTerm = e.target.value.toLowerCase();
+   document.getElementById('nombreBusqueda').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase().trim();
     const rows = document.querySelectorAll('#tablaUsuarios tr');
+    let hasVisibleRows = false;
+    
     rows.forEach(row => {
-      const nameCell = row.querySelector('td:first-child');
-      if (nameCell) {
-        const name = nameCell.textContent.toLowerCase();
-        row.style.display = name.includes(searchTerm) ? '' : 'none';
+      if (row.querySelectorAll('td').length >= 4) {
+        const name = row.cells[0].textContent.toLowerCase();
+        const curp = row.cells[1].textContent.toLowerCase();
+        const folio = row.cells[2].textContent.toLowerCase();
+        
+        const searchParts = searchTerm.split(/\s+/);
+        
+        const nameMatches = searchParts.every(part => name.includes(part));
+        const curpMatches = curp.includes(searchTerm);
+        const folioMatches = folio.includes(searchTerm);
+        
+        const isVisible = searchTerm === '' || nameMatches || curpMatches || folioMatches;
+        
+        row.style.display = isVisible ? '' : 'none';
+        if (isVisible) hasVisibleRows = true;
       }
     });
+    
+    const noResultsRow = document.querySelector('#tablaUsuarios tr td[colspan]');
+    if (noResultsRow) {
+      noResultsRow.parentNode.style.display = hasVisibleRows || searchTerm === '' ? 'none' : '';
+    }
   });
 
   document.querySelectorAll('tbody tr').forEach(row => {

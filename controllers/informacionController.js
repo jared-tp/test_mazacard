@@ -261,21 +261,32 @@ const informacionController = {
     const valores = [];
   
     if (busqueda) {
-      whereClause = '(nombre LIKE ? OR curp LIKE ?)';
-      valores.push(`%${busqueda}%`, `%${busqueda}%`);
+      whereClause = `(nombre LIKE ? OR 
+                     apellido_paterno LIKE ? OR 
+                     apellido_materno LIKE ? OR 
+                     CONCAT(nombre, ' ', apellido_paterno, ' ', apellido_materno) LIKE ? OR
+                     curp LIKE ? OR
+                     folio LIKE ?)`;
+      const busquedaLike = `%${busqueda}%`;
+      valores.push(
+        busquedaLike, 
+        busquedaLike, 
+        busquedaLike, 
+        busquedaLike, 
+        busquedaLike,
+        busquedaLike
+      );
     }
   
-    const sqlDatos = `
-      SELECT * FROM informacion
+    const sqlDatos = 
+      `SELECT * FROM informacion
       WHERE ${whereClause}
       ORDER BY fecha_expedicion DESC
-      LIMIT ? OFFSET ?
-    `;
+      LIMIT ? OFFSET ?`;
   
-    const sqlConteo = `
-      SELECT COUNT(*) as total FROM informacion
-      WHERE ${whereClause}
-    `;
+    const sqlConteo = 
+      `SELECT COUNT(*) as total FROM informacion
+      WHERE ${whereClause}`;
   
     const conexion = require('../db');
   
